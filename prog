@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Emoji Creator</title>
+  <style>
+    :root{--bg:#f7f7fb;--card:#ffffff;--accent:#4CAF50}
+    body{font-family:Inter, Roboto, Arial, sans-serif;background:var(--bg);margin:0;padding:24px;display:flex;gap:24px;align-items:flex-start;min-height:100vh}
+    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(20,20,50,0.06);width:360px}
+    h1{font-size:18px;margin:0 0 12px}
+    label{display:block;font-size:13px;margin:10px 0 6px}
+    select,input[type="color"],input[type="range"]{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e6ef;background:#fff}
+    .controls{display:flex;flex-direction:column}
+    .preview{background:#fff;border-radius:12px;padding:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+    canvas{background:linear-gradient(180deg,#fff,#fafafc);border-radius:999px}
+    .row{display:flex;gap:8px}
+    button{background:var(--accent);color:white;border:none;padding:10px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+    button.secondary{background:#6b7280}
+    .small{font-size:12px;padding:8px}
+    .credits{font-size:12px;color:#666;margin-top:8px}
+    footer{position:fixed;right:16px;bottom:16px;font-size:12px;color:#888}
+    @media (max-width:780px){body{flex-direction:column;align-items:stretch;padding:12px} .card{width:auto}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Emoji Creator — Controls</h1>
+    <div class="controls">
+      <label for="faceColor">Face color</label>
+      <input id="faceColor" type="color" value="#FFDD55">
+
+      <label for="eyeColor">Eye color</label>
+      <input id="eyeColor" type="color" value="#000000">
+
+      <label for="mouthColor">Mouth color</label>
+      <input id="mouthColor" type="color" value="#000000">
+
+      <label for="eyeType">Eye style</label>
+      <select id="eyeType">
+        <option value="round">Round</option>
+        <option value="smile">Smiling</option>
+        <option value="wink">Wink</option>
+        <option value="stars">Stars</option>
+        <option value="closed">Closed</option>
+      </select>
+
+      <label for="mouthType">Mouth style</label>
+      <select id="mouthType">
+        <option value="smile">Smile</option>
+        <option value="open">Open</option>
+        <option value="frown">Frown</option>
+        <option value="surprised">Surprised</option>
+        <option value="tongue">Tongue out</option>
+      </select>
+
+      <label for="accessory">Accessory</label>
+      <select id="accessory">
+        <option value="none">None</option>
+        <option value="sunglasses">Sunglasses</option>
+        <option value="blush">Blush</option>
+        <option value="party">Party hat</option>
+        <option value="mustache">Mustache</option>
+      </select>
+
+      <label for="size">Canvas size: <span id="sizeLabel">256</span>px</label>
+      <input id="size" type="range" min="128" max="512" value="256">
+
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button id="random">Randomize</button>
+        <button id="export">Export PNG</button>
+        <button id="reset" class="secondary">Reset</button>
+      </div>
+
+      <p class="credits">Tip: change colors and features, then export. Works fully in your browser — no uploads.</p>
+    </div>
+  </div>
+
+  <div class="card preview">
+    <h1 style="font-size:16px;margin:0">Preview</h1>
+    <canvas id="emoji" width="256" height="256" style="width:256px;height:256px"></canvas>
+    <div class="row">
+      <button id="downloadSmall" class="small">Download 128px</button>
+      <button id="downloadLarge" class="small">Download 512px</button>
+    </div>
+  </div>
+
+  <script>
+    const cvs = document.getElementById('emoji');
+    const ctx = cvs.getContext('2d');
+
+    const faceColorEl = document.getElementById('faceColor');
+    const eyeColorEl = document.getElementById('eyeColor');
+    const mouthColorEl = document.getElementById('mouthColor');
+    const eyeTypeEl = document.getElementById('eyeType');
+    const mouthTypeEl = document.getElementById('mouthType');
+    const accessoryEl = document.getElementById('accessory');
+    const sizeEl = document.getElementById('size');
+    const sizeLabel = document.getElementById('sizeLabel');
+
+    function drawEmoji(size=256){
+      // set canvas resolution
+      cvs.width = size; cvs.height = size;
+      cvs.style.width = size + 'px'; cvs.style.height = size + 'px';
+
+      const faceColor = faceColorEl.value;
+      const eyeColor = eyeColorEl.value;
+      const mouthColor = mouthColorEl.value;
+      const eyeType = eyeTypeEl.value;
+      const mouthType = mouthTypeEl.value;
+      const accessory = accessoryEl.value;
+
+      // clear
+      ctx.clearRect(0,0,size,size);
+      ctx.save();
+      ctx.translate(size/2, size/2);
+
+      // face
+      const r = size*0.4;
+      ctx.beginPath();
+      ctx.fillStyle = faceColor;
+      ctx.arc(0,0,r,0,Math.PI*2);
+      ctx.fill();
+
+      // subtle face shadow
+      const g = ctx.createRadialGradient(-r*0.3,-r*0.45,r*0.1,0,0,r);
+      g.addColorStop(0,'rgba(255,255,255,0.15)');
+      g.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(-r*0.1,-r*0.25,r*0.9,0,Math.PI*2); ctx.fill();
+
+      // eyes base positions
+      const eyeX = r*0.5; const eyeY = -r*0.15; const eyeR = r*0.12;
+
+      // draw eyes depending on eyeType
+      ctx.fillStyle = eyeColor;
+      ctx.strokeStyle = eyeColor;
+      ctx.lineWidth = Math.max(2, size/128);
+
+      if(eyeType === 'round'){
+        ctx.beginPath(); ctx.arc(-eyeX,eyeY,eyeR,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(eyeX,eyeY,eyeR,0,Math.PI*2); ctx.fill();
+      } else if(eyeType === 'smile'){
+        ctx.beginPath(); ctx.arc(-eyeX,eyeY,eyeR,0,Math.PI); ctx.stroke();
+        ctx.beginPath(); ctx.arc(eyeX,eyeY,eyeR,0,Math.PI); ctx.stroke();
+      } else if(eyeType === 'wink'){
+        ctx.beginPath(); ctx.arc(-eyeX,eyeY,eyeR,0,Math.PI*2); ctx.fill();
+        // wink line
+        ctx.beginPath(); ctx.moveTo(eyeX-eyeR,eyeY); ctx.quadraticCurveTo(eyeX,eyeY+eyeR*0.2,eyeX+eyeR,eyeY); ctx.stroke();
+      } else if(eyeType === 'stars'){
+        drawStar(-eyeX,eyeY,eyeR,5); drawStar(eyeX,eyeY,eyeR,5);
+      } else if(eyeType === 'closed'){
+        ctx.beginPath(); ctx.moveTo(-eyeX-eyeR,eyeY); ctx.quadraticCurveTo(-eyeX,eyeY-eyeR, -eyeX+eyeR,eyeY); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(eyeX-eyeR,eyeY); ctx.quadraticCurveTo(eyeX,eyeY-eyeR, eyeX+eyeR,eyeY); ctx.stroke();
+      }
+
+      // mouth
+      ctx.fillStyle = mouthColor; ctx.strokeStyle = mouthColor;
+      const mY = r*0.3; const mW = r*0.9;
+      if(mouthType === 'smile'){
+        ctx.beginPath(); ctx.lineWidth = Math.max(3, size/96); ctx.arc(0,mY,mW*0.25,0,Math.PI); ctx.stroke();
+      } else if(mouthType === 'open'){
+        ctx.beginPath(); ctx.ellipse(0,mY,mW*0.25,mW*0.17,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.beginPath(); ctx.ellipse(0,mY+mW*0.03,mW*0.18,mW*0.11,0,0,Math.PI*2); ctx.fill();
+      } else if(mouthType === 'frown'){
+        ctx.beginPath(); ctx.lineWidth = Math.max(3, size/96); ctx.arc(0,mY+size*0.02,mW*0.25,Math.PI,0); ctx.stroke();
+      } else if(mouthType === 'surprised'){
+        ctx.beginPath(); ctx.arc(0,mY,mW*0.12,0,Math.PI*2); ctx.fill();
+      } else if(mouthType === 'tongue'){
+        ctx.beginPath(); ctx.arc(0,mY,mW*0.25,0,Math.PI); ctx.stroke();
+        ctx.fillStyle = '#FF6B8A'; ctx.beginPath(); ctx.ellipse(0,mY+size*0.025,mW*0.12,mW*0.08,0,0,Math.PI*2); ctx.fill();
+      }
+
+      // accessory
+      if(accessory === 'sunglasses'){
+        drawSunglasses(r);
+      } else if(accessory === 'blush'){
+        drawBlush(r);
+      } else if(accessory === 'party'){
+        drawPartyHat(r);
+      } else if(accessory === 'mustache'){
+        drawMustache(r);
+      }
+
+      ctx.restore();
+    }
+
+    function drawStar(cx,cy,rad,pts){
+      ctx.save(); ctx.beginPath();
+      for(let i=0;i<pts*2;i++){
+        const r = (i%2===0)? rad : rad*0.45;
+        const a = i*(Math.PI*2)/(pts*2) - Math.PI/2;
+        const x = cx + Math.cos(a)*r; const y = cy + Math.sin(a)*r;
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+
+    function drawSunglasses(r){
+      ctx.save(); ctx.fillStyle = '#111'; ctx.strokeStyle = '#111'; ctx.lineWidth = Math.max(3, cvs.width/128);
+      const gx = r*0.5; const gy = -r*0.2; const wr = r*0.28; const hr = r*0.18;
+      ctx.beginPath(); ctx.ellipse(-gx,gy,wr,hr,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(gx,gy,wr,hr,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-gx+wr,gy); ctx.lineTo(gx-wr,gy); ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawBlush(r){
+      ctx.save(); ctx.fillStyle = 'rgba(255,100,120,0.45)'; const bx = r*0.7; const by = r*0.1; const br = r*0.18;
+      ctx.beginPath(); ctx.ellipse(-bx,by,br,br*0.65,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(bx,by,br,br*0.65,0,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawPartyHat(r){
+      ctx.save(); const hx = 0; const hy = -r*0.9; ctx.translate(hx,hy);
+      ctx.beginPath(); ctx.moveTo(0, r*0.95); ctx.lineTo(-r*0.55, r*0.2); ctx.lineTo(r*0.55, r*0.2); ctx.closePath();
+      ctx.fillStyle = '#FF4971'; ctx.fill();
+      ctx.beginPath(); ctx.arc(0,r*0.95,r*0.07,0,Math.PI*2); ctx.fillStyle='#FFD54F'; ctx.fill(); ctx.restore();
+    }
+
+    function drawMustache(r){
+      ctx.save(); ctx.fillStyle = '#2c2c2c'; const my = r*0.25; const mw = r*0.45; ctx.beginPath();
+      ctx.moveTo(-mw, my); ctx.quadraticCurveTo(-mw*0.5,my-mw*0.4,0,my); ctx.quadraticCurveTo(mw*0.5,my-mw*0.4,mw,my); ctx.fill();
+      ctx.restore();
+    }
+
+    /
